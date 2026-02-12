@@ -55,7 +55,7 @@ export async function GetUserChatsControllers(req: FastifyRequest, reply: Fastif
 }
 export async function GetChatMessagesControllers(req: FastifyRequest, reply: FastifyReply) {
       const { chatId } = req.params as { chatId: string };
-console.log(req)
+
   try {
     const result = await  GetChatMessages(chatId);
     if (result.data) {
@@ -84,7 +84,7 @@ export async function CreateChatMessageController(req: FastifyRequest, reply: Fa
     const { chatId } = req.params as { chatId: string };
     const { content, sender } = req.body as { content: string, sender: string };
   const chatData={chatId,content,sender};
-  console.log(chatData)
+  
   try {
     const result = await Message(chatData);
     if (result.data) {
