@@ -2,6 +2,7 @@
 import fastify from './src/middleware/jwt';
 import {  LoginUserRoute } from './src/routes/auth';
 import { ChatRoute } from './src/routes/chatBot';
+import { AnalyticsRoute } from './src/routes/analytics';
 
 fastify.get('/',{
             preHandler: [fastify.authenticate],
@@ -14,6 +15,7 @@ fastify.get('/jwt', async (request:any, reply:any) => {
 })
 fastify.register(LoginUserRoute,{prefix:"/api/auth"})
 fastify.register(ChatRoute,{prefix:"/api/chatbot"})
+fastify.register(AnalyticsRoute,{prefix:"/api/analytics"})
 const start = async () => {
   try {
     await fastify.listen({ port: 5000 })

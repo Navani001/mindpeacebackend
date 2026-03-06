@@ -22,7 +22,7 @@ fastify.register(fastifyCookie, {
 });
 fastify.register(cors, {
   origin: true, // Be careful in production - specify exact origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization',''],
   credentials:true
 });

@@ -25,6 +25,9 @@ model User {
   updatedAt         DateTime       @default(now()) @updatedAt
   chats Chats[]
   trustNumber trustNumber[]
+  moodCheckIns       MoodCheckIn[]
+  mindfulSessions    MindfulSession[]
+  wellnessTaskLogs   WellnessTaskLog[]
 }
 model Chats{
   id  String @id @default(uuid())
@@ -52,6 +55,53 @@ model trustNumber{
   userId Int
   user User @relation(fields: [userId], references: [id])
   createdAt         DateTime       @default(now())
+}
+
+model MoodCheckIn {
+  id           String   @id @default(uuid())
+  userId       Int
+  moodLabel    String
+  moodScore    Int
+  notes        String?
+  checkInDate  DateTime @db.Date
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, checkInDate])
+  @@index([userId, checkInDate])
+  @@index([userId, moodScore])
+}
+
+model MindfulSession {
+  id               String   @id @default(uuid())
+  userId           Int
+  durationMinutes  Int
+  activity         String?
+  sessionDate      DateTime @db.Date
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, sessionDate])
+}
+
+model WellnessTaskLog {
+  id           String    @id @default(uuid())
+  userId       Int
+  taskText     String
+  targetDate   DateTime  @db.Date
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, targetDate])
+  @@index([userId, completed])
 }
 
 
