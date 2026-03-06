@@ -1,15 +1,40 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CreateUser, Login } from "../services/auth";
+import prisma from "../lib/prisma";
+
 export async function LoginUserController(req: FastifyRequest, reply: FastifyReply) {
   const { email } = req.body as { email: string };
 
   try {
     const result = await Login({ email });
     if (result.data) {
+      const userId = result.data.user.id;
+      
+      // Find the latest chat for this user
+      let chat = await prisma.chats.findFirst({
+        where: { userId: userId },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // If no chat exists, create a new one
+      if (!chat) {
+        chat = await prisma.chats.create({
+          data: {
+            name: "New Chat",
+            mood: "neutral",
+            userId: userId,
+            score: 0
+          }
+        });
+      }
+
       return reply.status(200).send({
         success: true,
         message: 'Login successful',
-        data: result.data
+        data: {
+          ...result.data,
+          chatId: chat.id
+        }
       });
     } else {
       return reply.status(401).send({

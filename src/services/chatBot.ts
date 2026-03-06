@@ -52,6 +52,7 @@ export async function GetUserChats(userId: number) {
   } 
   const chats = await prisma.chats.findMany({
     where: { userId: userId },
+    orderBy: { updatedAt: 'desc' }
   });
   return { message: "User chats fetched successfully", data: { chats: chats } };
 }
@@ -153,3 +154,61 @@ export const GetChatMessages= async (chatId:string)=>{
     return {message:"Chat messages fetched successfully",data:{messages:messages,chats}}
 }
 
+
+export async function GetLatestChat(userId: number) {
+  if (!userId) {
+    console.log("No userId provided");
+    return { message: "no userId provided", data: null };
+  }
+
+  try {
+    const chat = await prisma.chats.findFirst({
+      where: {
+        userId: userId,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      include: {
+        messages: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!chat) {
+      return { message: "No chats found", data: null };
+    }
+
+    return { message: "Latest chat fetched successfully", data: { chat: chat } };
+  } catch (err) {
+    console.error("Error fetching latest chat:", err);
+    return { message: "Failed to fetch latest chat", data: null };
+  }
+}
+
+export async function DeleteChat(chatId: string) {
+  if (!chatId) {
+    console.log("No chatId provided");
+    return { message: "no chatId provided", data: null };
+  }
+
+  try {
+    // Delete all messages in the chat first
+    await prisma.messages.deleteMany({
+      where: { chatId: chatId },
+    });
+
+    // Then delete the chat
+    const deletedChat = await prisma.chats.delete({
+      where: { id: chatId },
+    });
+
+    return { message: "Chat deleted successfully", data: { chat: deletedChat } };
+  } catch (err) {
+    console.error("Error deleting chat:", err);
+    return { message: "Chat deletion failed", data: null };
+  }
+}
