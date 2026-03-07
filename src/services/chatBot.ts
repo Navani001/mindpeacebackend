@@ -96,7 +96,7 @@ IMPORTANT: Return ONLY valid JSON with these three fields. Example:
 `;
 
 const response:any = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
+  model: "gemini-2.5-flash-lite",
   contents: prompt,
   config: {
     responseMimeType: "application/json",
