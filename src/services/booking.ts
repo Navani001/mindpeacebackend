@@ -53,9 +53,9 @@ export async function UpdateConsultantNote(
   consultantNote: string
 ) {
   const booking = await prisma.booking.findFirst({
-    where: { id: bookingId, consultantId, status: "accepted" },
+    where: { id: bookingId, consultantId },
   });
-  if (!booking) return { error: "Booking not found or not accepted" };
+  if (!booking) return { error: "Booking not found" };
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
@@ -65,22 +65,29 @@ export async function UpdateConsultantNote(
   return { booking: updated };
 }
 
-// ── Consultant: accept or reject a booking ────────────────────────────────────
+// ── Consultant: update booking status ────────────────────────────────────
 export async function UpdateBookingStatus(
   bookingId: string,
   consultantId: number,
-  status: "accepted" | "rejected"
+  status: "accepted" | "rejected" | "completed"
 ) {
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, consultantId },
   });
   if (!booking) return { error: "Booking not found" };
-  if (booking.status !== "pending")
-    return { error: "Only pending bookings can be updated" };
+  
+  // Allow pending -> accepted/rejected, or accepted -> completed
+  if (booking.status === "pending" && (status === "accepted" || status === "rejected")) {
+    // Valid
+  } else if (booking.status === "accepted" && status === "completed") {
+    // Valid
+  } else {
+    return { error: `Invalid status transition from ${booking.status} to ${status}` };
+  }
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
-    data: { status },
+    data: { status: status as any },
     include: { student: { select: { id: true, name: true, email: true } } },
   });
   return { booking: updated };

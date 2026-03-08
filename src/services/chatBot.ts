@@ -2,6 +2,24 @@ import prisma from "../lib/prisma";
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { encrypt, safeDecrypt } from "../lib/crypto";
+
+/** Decrypt message fields from DB */
+function decryptMessage(msg: any) {
+  return { ...msg, content: safeDecrypt(msg.content) };
+}
+
+/** Decrypt chat metadata fields from DB */
+function decryptChat(chat: any) {
+  if (!chat) return chat;
+  return {
+    ...chat,
+    name: safeDecrypt(chat.name),
+    mood: safeDecrypt(chat.mood),
+    messages: chat.messages ? chat.messages.map(decryptMessage) : undefined,
+  };
+}
+
 export async function UpdateChat(data: any) {
   if (!data) {
     console.log("No data provided");
@@ -12,14 +30,14 @@ export async function UpdateChat(data: any) {
     const chat = await prisma.chats.update({
       where: { id: data.id },
       data: {
-        name: data.name,
+        name: encrypt(data.name),
         userId: data.userId,
-        mood: data.mood,
+        mood: encrypt(data.mood),
         score: data.score,
       },
     });
 
-    return { message: "Chat updated successfully", data: { chat: chat } };
+    return { message: "Chat updated successfully", data: { chat: decryptChat(chat) } };
   } catch (err) {
     return { message: "Chat update failed", data: null };
   }
@@ -33,14 +51,14 @@ export async function ChatCreation(data: any) {
   try {
     const chat = await prisma.chats.create({
       data: {
-        name: data.name,
+        name: encrypt(data.name),
         userId: data.userId,
-        mood: data.mood,
+        mood: encrypt(data.mood),
         score: data.score,
       },
     });
 
-    return { message: "Chat created successfully", data: { chat: chat } };
+    return { message: "Chat created successfully", data: { chat: decryptChat(chat) } };
   } catch (err) {
     return { message: "Chat creation failed", data: null };
   }
@@ -54,7 +72,7 @@ export async function GetUserChats(userId: number) {
     where: { userId: userId },
     orderBy: { updatedAt: 'desc' }
   });
-  return { message: "User chats fetched successfully", data: { chats: chats } };
+  return { message: "User chats fetched successfully", data: { chats: chats.map(decryptChat) } };
 }
 export const  Message= async (data:any)=>{
     if(!data){
@@ -128,11 +146,11 @@ const updatedChat=await UpdateChat({id:data.chatId,name:chat.name,mood:chat.mood
     const message=await prisma.messages.create({
         data:{
             chatId:data.chatId,
-            content:data.content,
+            content:encrypt(data.content),
             sender:data.sender
         }
     })
-    return {message:"Message created successfully",data:{message:message,chat:updatedChat.data?.chat} }
+    return {message:"Message created successfully",data:{message:decryptMessage(message),chat:updatedChat.data?.chat} }
 
   }  catch(err){
 
@@ -151,7 +169,7 @@ export const GetChatMessages= async (chatId:string)=>{
     const chats=await prisma.chats.findUnique({
       where:{id:chatId}
     })
-    return {message:"Chat messages fetched successfully",data:{messages:messages,chats}}
+    return {message:"Chat messages fetched successfully",data:{messages:messages.map(decryptMessage),chats:decryptChat(chats)}}
 }
 
 
@@ -182,7 +200,7 @@ export async function GetLatestChat(userId: number) {
       return { message: "No chats found", data: null };
     }
 
-    return { message: "Latest chat fetched successfully", data: { chat: chat } };
+    return { message: "Latest chat fetched successfully", data: { chat: decryptChat(chat) } };
   } catch (err) {
     console.error("Error fetching latest chat:", err);
     return { message: "Failed to fetch latest chat", data: null };

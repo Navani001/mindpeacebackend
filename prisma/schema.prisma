@@ -18,6 +18,7 @@ enum BookingStatus {
   pending
   accepted
   rejected
+  completed
 }
 
 enum MeetingType {
@@ -59,6 +60,7 @@ model messages{
   chatId String
   content String
   sender String
+  embedding Json?   // float[] stored as JSON for semantic similarity search
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @default(now()) @updatedAt
   chat Chats @relation(fields: [chatId], references: [id])
