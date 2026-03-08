@@ -11,6 +11,18 @@ datasource db {
 enum roles{
   student
   admin
+  consultant
+}
+
+enum BookingStatus {
+  pending
+  accepted
+  rejected
+}
+
+enum MeetingType {
+  online
+  offline
 }
 // User authentication and roles
 model User {
@@ -28,6 +40,8 @@ model User {
   moodCheckIns       MoodCheckIn[]
   mindfulSessions    MindfulSession[]
   wellnessTaskLogs   WellnessTaskLog[]
+  studentBookings    Booking[]      @relation("StudentBookings")
+  consultantBookings Booking[]      @relation("ConsultantBookings")
 }
 model Chats{
   id  String @id @default(uuid())
@@ -104,4 +118,23 @@ model WellnessTaskLog {
   @@index([userId, completed])
 }
 
+model Booking {
+  id           String        @id @default(uuid())
+  studentId    Int
+  consultantId Int
+  date         String
+  time         String
+  topic        String
+  message      String?
+  meetingType  MeetingType   @default(online)
+  consultantNote String?
+  status       BookingStatus @default(pending)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
 
+  student      User          @relation("StudentBookings",    fields: [studentId],    references: [id])
+  consultant   User          @relation("ConsultantBookings", fields: [consultantId], references: [id])
+
+  @@index([consultantId, status])
+  @@index([studentId, status])
+}
