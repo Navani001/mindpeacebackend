@@ -18,8 +18,8 @@ async function loginSeed() {
       phoneNumber: "+1234567890",
     },
     {
-      name: "Admin User",
-      email: "admin@mindcare.com",
+      name: "Consultant User",
+      email: "consultant@mindcare.com",
       password: "password123",
       role: roles.consultant,
       phoneNumber: "+1234500000",
@@ -28,7 +28,7 @@ async function loginSeed() {
       name: "Jane Student",
       email: "jane@example.com",
       password: "password123",
-      role: "consultant" as const,
+      role: "student" as const,
       phoneNumber: "+1234567000",
     },
   ];
