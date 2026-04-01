@@ -2,15 +2,31 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
+
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 enum roles{
   student
   admin
+  consultant
+}
+
+enum BookingStatus {
+  pending
+  accepted
+  rejected
+  completed
+}
+
+enum MeetingType {
+  online
+  offline
 }
 // User authentication and roles
 model User {
@@ -28,6 +44,8 @@ model User {
   moodCheckIns       MoodCheckIn[]
   mindfulSessions    MindfulSession[]
   wellnessTaskLogs   WellnessTaskLog[]
+  studentBookings    Booking[]      @relation("StudentBookings")
+  consultantBookings Booking[]      @relation("ConsultantBookings")
 }
 model Chats{
   id  String @id @default(uuid())
@@ -45,6 +63,7 @@ model messages{
   chatId String
   content String
   sender String
+  embedding Unsupported("vector(3072)")?   // pgvector column for semantic similarity search
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @default(now()) @updatedAt
   chat Chats @relation(fields: [chatId], references: [id])
@@ -104,4 +123,23 @@ model WellnessTaskLog {
   @@index([userId, completed])
 }
 
+model Booking {
+  id           String        @id @default(uuid())
+  studentId    Int
+  consultantId Int
+  date         String
+  time         String
+  topic        String
+  message      String?
+  meetingType  MeetingType   @default(online)
+  consultantNote String?
+  status       BookingStatus @default(pending)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
 
+  student      User          @relation("StudentBookings",    fields: [studentId],    references: [id])
+  consultant   User          @relation("ConsultantBookings", fields: [consultantId], references: [id])
+
+  @@index([consultantId, status])
+  @@index([studentId, status])
+}

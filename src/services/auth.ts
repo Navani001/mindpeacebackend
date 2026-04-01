@@ -7,10 +7,10 @@ export async function Login(data:any) {
         }
     try{
           const user =await prisma.user.findFirst({where: {email:data.email}})      
-          const accessToken = fastify.jwt.sign({ payload:{id:user?.id,name:user?.name,email:user?.email} });
           if(user==null){
             return {message:"Login falied",data:null}
           }
+          const accessToken = fastify.jwt.sign({ payload:{id:user?.id,name:user?.name,email:user?.email,role:user?.role} });
          return {message:"Login successful",data:{user:user,token:accessToken}}
     }
     catch(err){

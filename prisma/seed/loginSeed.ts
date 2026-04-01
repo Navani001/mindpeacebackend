@@ -1,3 +1,4 @@
+import { roles } from "@prisma/client";
 import prisma from "../../src/lib/prisma";
 
 const dateOnly = (daysOffset = 0) => {
@@ -17,10 +18,10 @@ async function loginSeed() {
       phoneNumber: "+1234567890",
     },
     {
-      name: "Admin User",
-      email: "admin@mindcare.com",
+      name: "Consultant User",
+      email: "consultant@mindcare.com",
       password: "password123",
-      role: "admin" as const,
+      role: roles.consultant,
       phoneNumber: "+1234500000",
     },
     {
