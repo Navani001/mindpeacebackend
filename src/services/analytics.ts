@@ -5,19 +5,41 @@ const getDateOnly = (value?: string) => {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 };
 
-const startOfDay = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-
-const endOfDay = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-};
-
 const moodLabels = ["Awful", "Bad", "Okay", "Good", "Great"];
+
+const buildDefaultTasksFromRecentMood = (recentMoodScores: number[]) => {
+  if (!recentMoodScores.length) {
+    return [
+      "Take a 10-minute mindful breathing break",
+      "Drink water and stretch for 5 minutes",
+      "Write one sentence about how you feel today",
+    ];
+  }
+
+  const avgMood = recentMoodScores.reduce((acc, score) => acc + score, 0) / recentMoodScores.length;
+
+  if (avgMood <= 2) {
+    return [
+      "Take a gentle 10-minute walk",
+      "Try a 5-minute grounding exercise",
+      "Message someone you trust today",
+    ];
+  }
+
+  if (avgMood <= 3) {
+    return [
+      "Do a 10-minute mindfulness session",
+      "Journal 3 things that felt okay today",
+      "Take a short break away from screens",
+    ];
+  }
+
+  return [
+    "Keep momentum with a 15-minute focus block",
+    "Do one act of self-care you enjoy",
+    "Reflect on one positive moment from today",
+  ];
+};
 
 export async function UpsertMoodCheckIn(data: {
   userId: number;
@@ -139,29 +161,21 @@ export async function GetDashboardData(userId: number) {
   if (!userId) return { message: "no userId provided", data: null };
 
   try {
-    const today = new Date();
-    const todayStart = startOfDay(today);
-    const todayEnd = endOfDay(today);
+    const today = getDateOnly();
 
-    const [allCheckIns, todayCheckIn, mindfulSessions, todayTasks, lastYearCheckIns] = await Promise.all([
+    const [allCheckIns, todayCheckIn, mindfulSessions, todayTasksResult, lastYearCheckIns] = await Promise.all([
       prisma.moodCheckIn.findMany({ where: { userId }, orderBy: { checkInDate: "asc" } }),
       prisma.moodCheckIn.findFirst({
         where: {
           userId,
-          checkInDate: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
+          checkInDate: today,
         },
       }),
       prisma.mindfulSession.findMany({ where: { userId } }),
       prisma.wellnessTaskLog.findMany({
         where: {
           userId,
-          targetDate: {
-            gte: todayStart,
-            lte: todayEnd,
-          },
+          targetDate: today,
         },
         orderBy: { createdAt: "asc" },
       }),
@@ -175,6 +189,24 @@ export async function GetDashboardData(userId: number) {
         orderBy: { checkInDate: "asc" },
       }),
     ]);
+
+    let todayTasks = todayTasksResult;
+    if (todayTasks.length === 0) {
+      const recentMoodScores = allCheckIns.slice(-3).map((item) => item.moodScore);
+      const defaultTaskTexts = buildDefaultTasksFromRecentMood(recentMoodScores);
+
+      todayTasks = await Promise.all(
+        defaultTaskTexts.map((taskText) =>
+          prisma.wellnessTaskLog.create({
+            data: {
+              userId,
+              taskText,
+              targetDate: today,
+            },
+          })
+        )
+      );
+    }
 
     const totalCheckIns = allCheckIns.length;
     const avgMoodScore = totalCheckIns
@@ -299,10 +331,7 @@ export async function GetWellnessTasks(userId: number, date?: string) {
     const tasks = await prisma.wellnessTaskLog.findMany({
       where: {
         userId,
-        targetDate: {
-          gte: startOfDay(target),
-          lte: endOfDay(target),
-        },
+        targetDate: target,
       },
       orderBy: { createdAt: "asc" },
     });
