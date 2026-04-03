@@ -52,11 +52,17 @@ export async function LoginUserController(req: FastifyRequest, reply: FastifyRep
   }
 }
 export async function CreateUserController(req: FastifyRequest, reply: FastifyReply) {
-  const { email,password,phoneNumber,name } = req.body as { email: string,password: string, phoneNumber: string, name: string };
+  const { email,password,phoneNumber,name,role } = req.body as {
+    email: string;
+    password: string;
+    phoneNumber: string;
+    name: string;
+    role?: "student" | "consultant";
+  };
 
   try {
     // Call the Login function
-    const result = await CreateUser({ email,password,phoneNumber ,name });
+    const result = await CreateUser({ email,password,phoneNumber ,name, role });
 
     // If login was successful
     if (result.data) {
