@@ -1,10 +1,13 @@
 import prisma from "../lib/prisma";
 import { GoogleGenAI } from "@google/genai";
+import Cerebras from "@cerebras/cerebras_cloud_sdk";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { encrypt, safeDecrypt } from "../lib/crypto";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || "" });
+const client = new Cerebras({
+  apiKey: process.env.CEREBRAS_API_KEY,
+});
 
 // ── Embedding helpers ─────────────────────────────────────────────────────────
 
@@ -46,7 +49,7 @@ async function findSimilarMessages(chatId: string, queryText: string, topK = 5):
   `);
 
   return rows
-    .filter((r) => parseFloat(r.similarity) > 0.5)
+    .filter((r) => Number.parseFloat(r.similarity) > 0.5)
     .map((r) => safeDecrypt(r.content));
 }
 
@@ -85,6 +88,7 @@ export async function UpdateChat(data: any) {
 
     return { message: "Chat updated successfully", data: { chat: decryptChat(chat) } };
   } catch (err) {
+    console.error("Chat update failed:", err);
     return { message: "Chat update failed", data: null };
   }
 }
@@ -106,6 +110,7 @@ export async function ChatCreation(data: any) {
 
     return { message: "Chat created successfully", data: { chat: decryptChat(chat) } };
   } catch (err) {
+    console.error("Chat creation failed:", err);
     return { message: "Chat creation failed", data: null };
   }
 }
@@ -113,12 +118,19 @@ export async function GetUserChats(userId: number) {
   if (!userId) {
     console.log("No userId provided");
     return { message: "no userId provided", data: null };
-  } 
-  const chats = await prisma.chats.findMany({
-    where: { userId: userId },
-    orderBy: { updatedAt: 'desc' }
-  });
-  return { message: "User chats fetched successfully", data: { chats: chats.map(decryptChat) } };
+  }
+
+  try {
+    const chats = await prisma.chats.findMany({
+      where: { userId: userId },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return { message: "User chats fetched successfully", data: { chats: chats.map(decryptChat) } };
+  } catch (err) {
+    console.error("Error fetching user chats:", err);
+    return { message: "Failed to fetch chats", data: null, error: err };
+  }
 }
 export const  Message= async (data:any)=>{
     if(!data){
@@ -142,15 +154,14 @@ const chatSchema:any = z.object({
   score: z.number().describe("score of the mood from -10 to 10"),
 });
 
-const schemaJson = zodToJsonSchema(chatSchema);
-
 const chatUnique=await prisma.chats.findUnique({ where:{
   id:data.chatId
 }})
 
 // 3. Build semantically-enriched prompt using similar past messages
 const semanticContext = similarMessages.length > 0
-  ? `\n\nRelevant context from this student's past messages:\n${similarMessages.map((m, i) => `${i + 1}. "${m}"`).join("\n")}`
+  ? "\n\nRelevant context from this student's past messages:\n" +
+    similarMessages.map((m, i) => `${i + 1}. "${m}"`).join("\n")
   : "";
 
 const prompt = `
@@ -167,25 +178,29 @@ IMPORTANT: Return ONLY valid JSON with these three fields. Example:
 {"name": "Mental Health Discussion", "mood": "Reflective", "score": 5}
 `;
 
-const response:any = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
-  contents: prompt,
-  config: {
-    responseMimeType: "application/json",
-    responseJsonSchema: schemaJson,
-  },
+const response:any = await client.chat.completions.create({
+  model: "llama3.1-8b",
+  messages: [
+    {
+      role: "user",
+      content: prompt,
+    },
+  ],
 });
 
 console.log("AI Response:", response);
-console.log("AI Response Text:", response.text);
+const responseText = Array.isArray(response?.choices?.[0]?.message?.content)
+  ? response.choices[0].message.content.map((part: any) => part.text ?? "").join("")
+  : response?.choices?.[0]?.message?.content ?? "";
+console.log("AI Response Text:", responseText);
 
 let parsedResponse;
 try {
-  parsedResponse = JSON.parse(response.text);
+  parsedResponse = JSON.parse(responseText);
   console.log("Parsed Response:", parsedResponse);
 } catch (parseErr) {
   console.error("Failed to parse AI response:", parseErr);
-  const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     parsedResponse = JSON.parse(jsonMatch[0]);
   } else {
@@ -206,7 +221,7 @@ const updatedChat=await UpdateChat({id:data.chatId,name:chat.name,mood:chat.mood
       const vectorLiteral = `[${embedding.join(",")}]`;
       const results: any[] = await prisma.$queryRawUnsafe(`
         INSERT INTO messages (id, "chatId", content, sender, embedding, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), '${data.chatId}', '${encryptedContent.replace(/'/g, "''")}', '${data.sender}', '${vectorLiteral}'::vector, NOW(), NOW())
+        VALUES (gen_random_uuid(), '${data.chatId}', '${encryptedContent.split("'").join("''")}', '${data.sender}', '${vectorLiteral}'::vector, NOW(), NOW())
         RETURNING id, "chatId", content, sender, "createdAt", "updatedAt"
       `);
       message = results[0];

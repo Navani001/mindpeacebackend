@@ -1,5 +1,6 @@
 import fastify from "../middleware/jwt";
 import prisma from "../lib/prisma";
+import { roles } from "@prisma/client";
 export async function Login(data:any) {
       if (!data) {
             console.log("No data provided");
@@ -25,14 +26,21 @@ export async function CreateUser(data:any) {
             return { message: "no data provided", data: null };
         }
     try{          
+                const requestedRole = data.role ?? roles.student;
+                const allowedRoles = [roles.student, roles.consultant];
+                if (!allowedRoles.includes(requestedRole)) {
+                    return { message: "invalid role", data: null };
+                }
+
         const user =await prisma.user.create({data:{
             name:data.name,
             email:data.email,
             password:data.password,
-            phoneNumber:data.phoneNumber
+                        phoneNumber:data.phoneNumber,
+                        role: requestedRole,
         }})
         
-          const accessToken = fastify.jwt.sign({ payload:{id:user?.id,name:user?.name,email:user?.email} });
+                    const accessToken = fastify.jwt.sign({ payload:{id:user?.id,name:user?.name,email:user?.email,role:user?.role} });
           if(user==null){
             return {message:"account creation falied",data:null}
           }

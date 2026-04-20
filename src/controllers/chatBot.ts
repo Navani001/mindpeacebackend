@@ -1,5 +1,16 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { ChatCreation, DeleteChat, GetChatMessages, GetLatestChat, GetUserChats, Message } from "../services/chatBot";
+
+function isDatabaseUnavailableError(error: unknown): boolean {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return (
+    errorMessage.includes("P1001") ||
+    errorMessage.includes("Can't reach database server") ||
+    errorMessage.includes("ECONNREFUSED") ||
+    errorMessage.includes("ENOTFOUND")
+  );
+}
+
 export async function ChatCreationController(req: FastifyRequest, reply: FastifyReply) {
   const { name, mood, score } = req.body as { name: string, userId: number, mood: string, score: number };
     const userId = (req.user as { id: number }).id;
@@ -38,18 +49,32 @@ export async function GetUserChatsControllers(req: FastifyRequest, reply: Fastif
         message: 'Chats fetched successfully',
         data: result.data
       });
+    } else if (isDatabaseUnavailableError((result as any).error)) {
+      return reply.status(503).send({
+        success: false,
+        message: 'Database unavailable',
+        error: 'Unable to connect to database. Please try again later.'
+      });
     } else {
-      return reply.status(401).send({
+      return reply.status(400).send({
         success: false,
         message: 'Chats fetch failed',
         error: 'Invalid data'
       });
     }
   } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      return reply.status(503).send({
+        success: false,
+        message: 'Database unavailable',
+        error: 'Unable to connect to database. Please try again later.'
+      });
+    }
+
     return reply.status(500).send({
       success: false,
       message: 'Server error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Unexpected server error'
     });
   }
 }
