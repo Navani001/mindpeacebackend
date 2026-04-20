@@ -11,6 +11,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "@cerebras/cerebras_cloud_sdk": "^1.64.1",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.1.0",
     "@fastify/jwt": "^9.0.4",
