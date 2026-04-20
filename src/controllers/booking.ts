@@ -71,8 +71,8 @@ export async function UpdateConsultantNoteController(req: FastifyRequest, reply:
 export async function UpdateBookingStatusController(req: FastifyRequest, reply: FastifyReply) {
   const consultantId = (req.user as { id: number }).id;
   const { bookingId } = req.params as { bookingId: string };
-  const { status } = req.body as { status: "accepted" | "rejected" };
-  if (!["accepted", "rejected"].includes(status)) {
+  const { status } = req.body as { status: "accepted" | "rejected" | "completed" };
+  if (!["completed", "rejected","accepted" ].includes(status)) {
     return reply.status(400).send({ success: false, message: "Invalid status" });
   }
   try {
